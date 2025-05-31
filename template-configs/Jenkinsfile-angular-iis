@@ -1,0 +1,8 @@
+@Library('shared-pipeline-lib') _
+angularFrontendIIS([
+  repository: 'repo-name',
+  iisPortMap: [
+    'dev': '4010',
+    'uat': '4011'
+  ]
+])

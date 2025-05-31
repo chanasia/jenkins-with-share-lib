@@ -1,0 +1,49 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ${ENVIRONMENT}-${REPOSITORY}
+  namespace: ${NAMESPACE}
+  labels:
+    app: ${ENVIRONMENT}-${REPOSITORY}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ${ENVIRONMENT}-${REPOSITORY}
+  template:
+    metadata:
+      labels:
+        app: ${ENVIRONMENT}-${REPOSITORY}
+    spec:
+      containers:
+      - name: container-1
+        image: ${IMAGE_TAG}
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 80
+          name: http
+        resources:
+          requests:
+            cpu: "50m"
+            memory: "128Mi"
+          limits:
+            cpu: "200m"
+            memory: "256Mi"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ${ENVIRONMENT}-${REPOSITORY}
+  namespace: ${NAMESPACE}
+  labels:
+    app: ${ENVIRONMENT}-${REPOSITORY}
+spec:
+  type: NodePort
+  ports:
+  - port: 80
+    targetPort: 80
+    nodePort: ${NODEPORT}
+    protocol: TCP
+    name: http
+  selector:
+    app: ${ENVIRONMENT}-${REPOSITORY}

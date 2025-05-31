@@ -1,0 +1,16 @@
+@Library('shared-pipeline-lib') _
+angularFrontendKube([
+  repository: 'repo-name',
+  nodePortMap: [
+    'dev': '31000',
+    'uat': '31001', 
+    'master': '31002',
+    'features/test-pipeline': '31104'
+
+    // NodePort Format: 3XXXY
+    // 3 = Kubernetes NodePort range prefix (30000-32767)
+    // XXX = Project ID (000-276 to stay within K8s range limit)
+    // Y = Environment ID (0=dev, 1=uat, 2=master, 3=production)
+
+  ]
+])

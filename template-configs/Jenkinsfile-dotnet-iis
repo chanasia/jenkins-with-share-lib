@@ -1,0 +1,12 @@
+@Library('shared-pipeline-lib') _
+dotnetBackendIIS([
+  repository: 'repo-name',
+  projectName: 'AppName.csproj',
+  projectDllName: 'AppName.dll',
+  iisPortMap: [
+    'dev': '8020',
+    'uat': '8021'
+  ]
+  
+])
+

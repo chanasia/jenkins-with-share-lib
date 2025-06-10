@@ -3,9 +3,9 @@ def call(Map config = [:]) {
     def environment = env.BRANCH_NAME.replaceAll('/', '-')
     def buildConfiguration = (env.BRANCH_NAME == 'uat') ? 'uat' : (env.BRANCH_NAME == 'master') ? 'production' : 'development'
     def kubernetesNamespace = 'angular-frontend'
-    def nodePort = config.nodePortMap[env.BRANCH_NAME]
-    if (!nodePort) {
-        error "NodePort not found for branch: ${env.BRANCH_NAME}. Available branches: ${config.nodePortMap.keySet()}"
+    def domain = config.domainMap[env.BRANCH_NAME]
+    if (!domain) {
+        error "Domain not found for branch: ${env.BRANCH_NAME}. Available branches: ${config.domainMap.keySet()}"
     }
     def tag = "1.0.${BUILD_NUMBER}-${environment}"
     def registryUrl = "192.168.1.88:5000"
@@ -28,12 +28,13 @@ def call(Map config = [:]) {
                             userRemoteConfigs: [[url: env.GIT_URL, credentialsId: 'jenkins-with-credential']]
                         ])
 
-                        // Copy required files from shared pipeline resources
                         def dockerfilePath = 'Dockerfile'
                         def deploymentFilePath = 'application.deployment.yaml'
+                        def ingressFilePath = 'ingress.deployment.yaml'
                         
                         copyResourceFile(frontendPath, dockerfilePath)
                         copyResourceFile(frontendPath, deploymentFilePath)
+                        copyResourceFile(frontendPath, ingressFilePath)
                     }
                 }
             }
@@ -48,6 +49,7 @@ def call(Map config = [:]) {
                         echo "Build Configuration: ${buildConfiguration}"
                         echo "Kubernetes Namespace: ${kubernetesNamespace}"
                         echo "Deployment Name: ${environment}-${repository}"
+                        echo "Domain: ${domain}"
 
                         sh "docker buildx build --platform linux/amd64 --no-cache -t ${imageTag} --build-arg BUILD_CONFIGURATION=${buildConfiguration} ."
 
@@ -64,17 +66,27 @@ def call(Map config = [:]) {
                         echo "Deploying to Kubernetes: ${repository} in ${environment} environment"
                         echo "Using Build Configuration: ${buildConfiguration}"
                         
-                        // Create a temporary deployment file with environment variables replaced
+                        // Create deployment
                         sh """
                         cat application.deployment.yaml | \
                         sed 's|\\\${ENVIRONMENT}|${environment}|g' | \
                         sed 's|\\\${REPOSITORY}|${repository}|g' | \
                         sed 's|\\\${IMAGE_TAG}|${imageTag}|g' | \
-                        sed 's|\\\${NODEPORT}|${nodePort}|g' | \
                         sed 's|\\\${NAMESPACE}|${kubernetesNamespace}|g' > deployment.yaml
                         """
                         
                         sh "kubectl apply -f deployment.yaml"
+                        
+                        // Create Ingress with dynamic values
+                        sh """
+                        cat ingress.deployment.yaml | \
+                        sed 's|\\\${ENVIRONMENT}|${environment}|g' | \
+                        sed 's|\\\${REPOSITORY}|${repository}|g' | \
+                        sed 's|\\\${NAMESPACE}|${kubernetesNamespace}|g' | \
+                        sed 's|\\\${DOMAIN}|${domain}|g' > ingress.yaml
+                        """
+                        
+                        sh "kubectl apply -f ingress.yaml"
                     }
                 }
             }
@@ -86,7 +98,7 @@ def call(Map config = [:]) {
                     try {
                         echo "Cleaning up Docker image: ${imageTag}"
                         sh "docker rmi ${imageTag} || true"
-                        sh "rm -f deployment.yaml || true"
+                        sh "rm -f deployment.yaml ingress.yaml || true"
                     } catch (Exception e) {
                         echo "Failed to clean up: ${e.message}"
                     }

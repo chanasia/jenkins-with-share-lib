@@ -42,7 +42,6 @@ spec:
   ports:
   - port: 80
     targetPort: 80
-    nodePort: ${NODEPORT}
     protocol: TCP
     name: http
   selector:
